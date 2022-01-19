@@ -39,29 +39,12 @@ GraphicsSettings:
   m_PreloadedShaders: []
   m_PreloadShadersBatchTimeLimit: -1
   m_SpritesDefaultMaterial: {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_CustomRenderPipeline: {fileID: 11400000, guid: 7b3907ebe26ecb5478c856c791d58112, type: 2}
+  m_CustomRenderPipeline: {fileID: 11400000, guid: e429a98f6ad92f343aefd209573c66bd, type: 2}
   m_TransparencySortMode: 0
   m_TransparencySortAxis: {x: 0, y: 0, z: 1}
   m_DefaultRenderingPath: 1
   m_DefaultMobileRenderingPath: 1
-  m_TierSettings:
-  - serializedVersion: 5
-    m_BuildTarget: 1
-    m_Tier: 0
-    m_Settings:
-      standardShaderQuality: 2
-      renderingPath: 1
-      hdrMode: 1
-      realtimeGICPUUsage: 25
-      useReflectionProbeBoxProjection: 1
-      useReflectionProbeBlending: 1
-      useHDR: 1
-      useDetailNormalMap: 1
-      useCascadedShadowMaps: 1
-      prefer32BitShadowMaps: 0
-      enableLPPV: 1
-      useDitherMaskForAlphaBlendedShadows: 1
-    m_Automatic: 1
+  m_TierSettings: []
   m_LightmapStripping: 0
   m_FogStripping: 0
   m_InstancingStripping: 0
