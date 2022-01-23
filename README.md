@@ -110,4 +110,4 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 
 [24] Catlike Coding, ["Directional Shadows Cascaded Shadow Maps"](https://catlikecoding.com/unity/tutorials/custom-srp/directional-shadows/)
 
-[25] 宋开心, ["用DX11实现Cascaded shadow map"](
+[25] 宋开心, ["用DX11实现Cascaded shadow map"](https://zhuanlan.zhihu.com/p/116731971)
