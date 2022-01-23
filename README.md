@@ -6,6 +6,10 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 
 ![image-20220118141333385](README.assets/image-20220118141333385.png)
 
+![image-20220123143804866](README.assets/image-20220123143804866.png)
+
+![image-20220123143818130](README.assets/image-20220123143818130.png)
+
 
 
 # Features
@@ -14,6 +18,8 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 * Physical Based Rendering（PBR，direct light）
 * Image Based Lighting（IBL，ambient light）
 * glTF Material support
+* Cascaded Shadow Mapping（CSM）
+* PCSS soft shadow（default off）
 
 
 
@@ -39,11 +45,13 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 
 ![image-20220118142219780](README.assets/image-20220118142219780.png)
 
+![image-20220123143842308](README.assets/image-20220123143842308.png)
+
 
 
 # Todo
 
-- [ ] Shadow Mapping
+- [x] Shadow Mapping
 
 - [ ] Cluster Shading
 - [ ] Screen Space Effect
@@ -86,3 +94,20 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 
 [16] dariomanesku, ["cmftStudio"](https://github.com/dariomanesku/cmftStudio)
 
+[17] BugRunner, ["Cascaded Shadow Map(CSM)中的一些问题"](https://blog.csdn.net/BugRunner/article/details/7366762)
+
+[18] YOung, ["Unity实时阴影实现——Screen Space Shadow Mapping"](https://zhuanlan.zhihu.com/p/45679584)
+
+[19] YOung, ["Unity实时阴影实现——Cascaded Shadow Mapping"](https://zhuanlan.zhihu.com/p/45673049)
+
+[20] richbabe, ["Unity实现Shadow Map"](http://richbabe.top/2018/06/27/%E7%94%A8Unity%E5%AE%9E%E7%8E%B0Shadow-Map/)
+
+[21] Frostbite, ["Shadows & Decals: D3D10 techniques from Frostbite"](https://ubm-twvideo01.s3.amazonaws.com/o1/vault/gdc09/slides/100_Handout%203.pdf)
+
+[22] Microsoft DX Doc, ["Cascaded Shadow Maps"](https://docs.microsoft.com/en-us/windows/win32/dxtecharts/cascaded-shadow-maps)
+
+[23] Microsoft DX Doc, ["Common Techniques to Improve Shadow Depth Maps"](https://docs.microsoft.com/en-us/windows/win32/dxtecharts/common-techniques-to-improve-shadow-depth-maps#moving-the-light-in-texel-sized-increments)
+
+[24] Catlike Coding, ["Directional Shadows Cascaded Shadow Maps"](https://catlikecoding.com/unity/tutorials/custom-srp/directional-shadows/)
+
+[25] 宋开心, ["用DX11实现Cascaded shadow map"](

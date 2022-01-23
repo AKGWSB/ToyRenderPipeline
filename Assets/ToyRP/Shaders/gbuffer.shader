@@ -23,10 +23,45 @@ Shader "ToyRP/gbuffer"
     }
     SubShader
     {
-        Tags { "LightMode"="gbuffer" }
+        Pass
+        {
+            Tags { "LightMode"="depthonly" }
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+
+            struct v2f
+            {
+                float4 vertex : SV_POSITION;
+                float2 depth : TEXCOORD0;
+            };
+
+            v2f vert (appdata_base v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.depth = o.vertex.zw;
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                float d = i.depth.x / i.depth.y;
+            #if defined (UNITY_REVERSED_Z)
+                d = 1.0 - d;
+            #endif
+                fixed4 c = EncodeFloatRGBA(d);
+                //return float4(d,0,0,1);   // for debug
+                return c;
+            }
+            ENDCG 
+        }
 
         Pass
         {
+            Tags { "LightMode"="gbuffer" }
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag

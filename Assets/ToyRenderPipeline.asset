@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39195ed78a5c20145b4b3d8840ef8c43, type: 3}
   m_Name: ToyRenderPipeline
   m_EditorClassIdentifier: 
-  diffuseIBL: {fileID: 8900000, guid: b830c2fc39a04cb4f8a842378e5893cf, type: 3}
-  specularIBL: {fileID: 8900000, guid: c077da6fa805ba649bcd00376739850b, type: 3}
+  diffuseIBL: {fileID: 8900000, guid: b74c842e68e471841a983825fcc02497, type: 3}
+  specularIBL: {fileID: 8900000, guid: 1191df7b1b332394caa8f9c535f004c1, type: 3}
   brdfLut: {fileID: 2800000, guid: 89252e11f7e138d4d8c66e868b8d5810, type: 3}
