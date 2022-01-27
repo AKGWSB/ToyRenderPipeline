@@ -6,9 +6,7 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 
 ![image-20220118141333385](README.assets/image-20220118141333385.png)
 
-![image-20220123143804866](README.assets/image-20220123143804866.png)
-
-![image-20220123143818130](README.assets/image-20220123143818130.png)
+![image-20220127123312138](README.assets/image-20220127123312138.png)
 
 
 
@@ -19,7 +17,7 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 * Image Based Lighting（IBL，ambient light）
 * glTF Material support
 * Cascaded Shadow Mapping（CSM）
-* PCSS soft shadow（default off）
+* PCSS soft shadow
 
 
 
@@ -111,3 +109,28 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 [24] Catlike Coding, ["Directional Shadows Cascaded Shadow Maps"](https://catlikecoding.com/unity/tutorials/custom-srp/directional-shadows/)
 
 [25] 宋开心, ["用DX11实现Cascaded shadow map"](https://zhuanlan.zhihu.com/p/116731971)
+
+[26] opengl-tutorial, ["Tutorial 16 : Shadow mapping"](http://www.opengl-tutorial.org/cn/intermediate-tutorials/tutorial-16-shadow-mapping/)
+
+[27] NVIDIA, ["Percentage-Closer Soft Shadows"](https://developer.download.nvidia.cn/shaderlibrary/docs/shadow_PCSS.pdf)
+
+[28] Vilem Otte, ["Effect: Area Light Shadows Part 1: PCSS"](https://www.gamedev.net/tutorials/programming/graphics/effect-area-light-shadows-part-1-pcss-r4971/)
+
+[29] kakaroto, ["实时渲染｜Shadow Map：PCF、PCSS、VSM、MSM"](https://zhuanlan.zhihu.com/p/369710758)
+
+[30] John R. Isidoro, ["Shadow Mapping: GPU-based Tips and Techniques"](http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/Isidoro-ShadowMapping.pdf)
+
+[31] Kevin Myers, ["Integrating Realistic Soft Shadows into Your Game Engine"](https://developer.download.nvidia.cn/whitepapers/2008/PCSS_Integration.pdf)
+
+[32] TheMasonX, ["UnityPCSS"](https://github.com/TheMasonX/UnityPCSS)
+
+[33] xiaOp, ["实时阴影技术总结"](https://xiaoiver.github.io/coding/2018/09/27/%E5%AE%9E%E6%97%B6%E9%98%B4%E5%BD%B1%E6%8A%80%E6%9C%AF%E6%80%BB%E7%BB%93.html)
+
+[34] 闫令琪老师, [“GAMES202-高质量实时渲染”](https://www.bilibili.com/video/BV1YK4y1T7yY)
+
+
+
+
+
+
+

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEditor;
+using UnityEngine.Profiling;
 
 public class ToyRenderPipeline : RenderPipeline
 {
@@ -10,6 +11,9 @@ public class ToyRenderPipeline : RenderPipeline
     RenderTexture[] gbuffers = new RenderTexture[4];                    // color attachments 
     RenderTargetIdentifier[] gbufferID = new RenderTargetIdentifier[4]; // tex ID 
     RenderTexture lightPassTex;                                         // 存储 light pass 的结果
+
+    // 噪声图
+    public Texture blueNoiseTex;
 
     // IBL 贴图
     public Cubemap diffuseIBL;
@@ -19,8 +23,12 @@ public class ToyRenderPipeline : RenderPipeline
     // 阴影管理
     public int shadowMapResolution = 1024;
     public float orthoDistance = 500.0f;
+    public float lightSize = 2.0f;
     CSM csm;
+    public CsmSettings csmSettings;
     RenderTexture[] shadowTextures = new RenderTexture[4];   // 阴影贴图
+    RenderTexture shadowMask;
+    RenderTexture shadowStrength;
 
     public ToyRenderPipeline()
     {
@@ -40,19 +48,25 @@ public class ToyRenderPipeline : RenderPipeline
             gbufferID[i] = gbuffers[i];
         
         // 创建阴影贴图
+        shadowMask = new RenderTexture(Screen.width/4, Screen.height/4, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+        shadowStrength = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
         for(int i=0; i<4; i++)
-            //shadowTextures[i] = new RenderTexture(shadowMapResolution, shadowMapResolution, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
             shadowTextures[i] = new RenderTexture(shadowMapResolution, shadowMapResolution, 24, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear);
 
         csm = new CSM();
     }
 
-    protected override void Render(ScriptableRenderContext context, Camera[] cameras)  
+    protected override void Render(ScriptableRenderContext context, Camera[] cameras)
     {
         // 主相机
         Camera camera = cameras[0];
 
         // 全局变量设置
+        Shader.SetGlobalFloat("_screenWidth", Screen.width);
+        Shader.SetGlobalFloat("_screenHeight", Screen.height);
+        Shader.SetGlobalTexture("_noiseTex", blueNoiseTex);
+        Shader.SetGlobalFloat("_noiseTexResolution", blueNoiseTex.width);
+
         //  gbuffer 
         Shader.SetGlobalTexture("_gdepth", gdepth);
         for(int i=0; i<4; i++) 
@@ -74,7 +88,9 @@ public class ToyRenderPipeline : RenderPipeline
         // 设置 CSM 相关参数
         Shader.SetGlobalFloat("_orthoDistance", orthoDistance);
         Shader.SetGlobalFloat("_shadowMapResolution", shadowMapResolution);
-        Shader.SetGlobalFloat("_lightSize", 5.0f);
+        Shader.SetGlobalFloat("_lightSize", lightSize);
+        Shader.SetGlobalTexture("_shadowStrength", shadowStrength);
+        Shader.SetGlobalTexture("_shadoMask", shadowMask);
         for(int i=0; i<4; i++)
         {
             Shader.SetGlobalTexture("_shadowtex"+i, shadowTextures[i]);
@@ -83,9 +99,11 @@ public class ToyRenderPipeline : RenderPipeline
 
         // ------------------------ 管线各个 Pass ------------------------ //
 
-        ShadowPass(context, camera);
+        ShadowCastingPass(context, camera);
 
         GbufferPass(context, camera);
+
+        ShadowMappingPass(context, camera);
 
         LightPass(context, camera);
 
@@ -106,14 +124,17 @@ public class ToyRenderPipeline : RenderPipeline
     }
 
     // 阴影贴图 pass
-    void ShadowPass(ScriptableRenderContext context, Camera camera)
+    void ShadowCastingPass(ScriptableRenderContext context, Camera camera)
     {
+        Profiler.BeginSample("MyPieceOfCode");
+
         // 获取光源信息
         Light light = RenderSettings.sun;
         Vector3 lightDir = light.transform.rotation * Vector3.forward;
 
         // 更新 shadowmap 分割
         csm.Update(camera, lightDir);
+        csmSettings.Set();
 
         csm.SaveMainCameraSettings(ref camera);
         for(int level=0; level<4; level++)
@@ -137,10 +158,6 @@ public class ToyRenderPipeline : RenderPipeline
             context.ExecuteCommandBuffer(cmd);
             cmd.Clear();
             
-            cmd.BeginSample("shadowDraw"+level);
-            context.ExecuteCommandBuffer(cmd);
-            cmd.Clear();
-
             // 剔除
             camera.TryGetCullingParameters(out var cullingParameters);
             var cullingResults = context.Cull(ref cullingParameters);
@@ -152,30 +169,25 @@ public class ToyRenderPipeline : RenderPipeline
 
             // 绘制
             context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
-
-            cmd.EndSample("shadowDraw"+level);
-            context.ExecuteCommandBuffer(cmd);
-
             context.Submit();   // 每次 set camera 之后立即提交
         }
         csm.RevertMainCameraSettings(ref camera);
+
+        Profiler.EndSample();
     }
 
     // Gbuffer Pass
     void GbufferPass(ScriptableRenderContext context, Camera camera)
     {
-        context.SetupCameraProperties(camera);
+        Profiler.BeginSample("gbufferDraw");
 
+        context.SetupCameraProperties(camera);
         CommandBuffer cmd = new CommandBuffer();
         cmd.name = "gbuffer";
         
         // 清屏
         cmd.SetRenderTarget(gbufferID, gdepth);
         cmd.ClearRenderTarget(true, true, Color.clear);
-        context.ExecuteCommandBuffer(cmd);
-        cmd.Clear();
-
-        cmd.BeginSample("gbufferDraw");
         context.ExecuteCommandBuffer(cmd);
         cmd.Clear();
 
@@ -191,10 +203,38 @@ public class ToyRenderPipeline : RenderPipeline
 
         // 绘制
         context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
+        context.Submit();
 
-        cmd.EndSample("gbufferDraw");
+        Profiler.EndSample();
+    }
+    
+    // 阴影计算 pass : 输出阴影强度 texture
+    void ShadowMappingPass(ScriptableRenderContext context, Camera camera)
+    {
+        CommandBuffer cmd = new CommandBuffer();
+        cmd.name = "shadowmappingpass";
+
+        RenderTexture tempTex1 = RenderTexture.GetTemporary(Screen.width/4, Screen.height/4, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+        RenderTexture tempTex2 = RenderTexture.GetTemporary(Screen.width/4, Screen.height/4, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+        RenderTexture tempTex3 = RenderTexture.GetTemporary(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+
+        if(csmSettings.usingShadowMask)
+        {
+            // 生成 Mask, 模糊 Mask
+            cmd.Blit(gbufferID[0], tempTex1, new Material(Shader.Find("ToyRP/preshadowmappingpass")));
+            cmd.Blit(tempTex1, tempTex2, new Material(Shader.Find("ToyRP/blurNx1")));
+            cmd.Blit(tempTex2, shadowMask, new Material(Shader.Find("ToyRP/blur1xN")));
+        }    
+
+        // 生成阴影, 模糊阴影
+        cmd.Blit(gbufferID[0], tempTex3, new Material(Shader.Find("ToyRP/shadowmappingpass")));
+        cmd.Blit(tempTex3, shadowStrength, new Material(Shader.Find("ToyRP/blurNxN")));
+        
+        RenderTexture.ReleaseTemporary(tempTex1);
+        RenderTexture.ReleaseTemporary(tempTex2);
+        RenderTexture.ReleaseTemporary(tempTex3);
+
         context.ExecuteCommandBuffer(cmd);
-
         context.Submit();
     }
 

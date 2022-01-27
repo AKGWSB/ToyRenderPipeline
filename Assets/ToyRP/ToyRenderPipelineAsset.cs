@@ -9,6 +9,10 @@ public class ToyRenderPipelineAsset : RenderPipelineAsset {
     public Cubemap diffuseIBL;
     public Cubemap specularIBL;
     public Texture brdfLut;
+    public Texture blueNoiseTex;
+
+    [SerializeField] 
+    public CsmSettings csmSettings;
 
     protected override RenderPipeline CreatePipeline() {
       ToyRenderPipeline rp = new ToyRenderPipeline();
@@ -16,6 +20,8 @@ public class ToyRenderPipelineAsset : RenderPipelineAsset {
       rp.diffuseIBL = diffuseIBL;
       rp.specularIBL = specularIBL;
       rp.brdfLut = brdfLut;
+      rp.blueNoiseTex = blueNoiseTex;
+      rp.csmSettings = csmSettings;
 
       return rp;
   }
