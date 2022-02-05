@@ -30,6 +30,9 @@ public class ToyRenderPipeline : RenderPipeline
     RenderTexture shadowMask;
     RenderTexture shadowStrength;
 
+    // 光照管理
+    ClusterLight clusterLight;
+
     public ToyRenderPipeline()
     {
         QualitySettings.vSyncCount = 0;     // 关闭垂直同步
@@ -54,6 +57,8 @@ public class ToyRenderPipeline : RenderPipeline
             shadowTextures[i] = new RenderTexture(shadowMapResolution, shadowMapResolution, 24, RenderTextureFormat.Depth, RenderTextureReadWrite.Linear);
 
         csm = new CSM();
+
+        clusterLight = new ClusterLight();
     }
 
     protected override void Render(ScriptableRenderContext context, Camera[] cameras)
@@ -99,6 +104,8 @@ public class ToyRenderPipeline : RenderPipeline
 
         // ------------------------ 管线各个 Pass ------------------------ //
 
+        ClusterLightingPass(context, camera);
+
         ShadowCastingPass(context, camera);
 
         GbufferPass(context, camera);
@@ -121,6 +128,25 @@ public class ToyRenderPipeline : RenderPipeline
 
         // 提交绘制命令
         context.Submit();
+    }
+
+    void ClusterLightingPass(ScriptableRenderContext context, Camera camera)
+    {
+        // 裁剪光源
+        camera.TryGetCullingParameters(out var cullingParameters);
+        var cullingResults = context.Cull(ref cullingParameters);
+        
+        // 更新光源
+        clusterLight.UpdateLightBuffer(cullingResults.visibleLights.ToArray());
+
+        // 划分 cluster
+        clusterLight.ClusterGenerate(camera);
+
+        // 分配光源
+        clusterLight.LightAssign();
+
+        // 传递参数
+        clusterLight.SetShaderParameters();
     }
 
     // 阴影贴图 pass

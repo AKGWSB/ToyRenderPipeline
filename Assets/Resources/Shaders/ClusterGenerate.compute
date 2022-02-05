@@ -1,0 +1,79 @@
+#pragma kernel ClusterGenerate
+
+#include "UnityCG.cginc"
+
+struct ClusterBox
+{
+    float3 p0, p1, p2, p3, p4, p5, p6, p7;
+};
+
+RWStructuredBuffer<ClusterBox> _clusterBuffer;
+
+float4x4 _viewMatrix;
+float4x4 _viewMatrixInv;
+float4x4 _vpMatrix;
+float4x4 _vpMatrixInv;
+float _near;
+float _far;
+float _fovh;
+float _numClusterX;
+float _numClusterY;
+float _numClusterZ;
+
+float3 MatTransformProj(float4x4 mat, float3 v3)
+{
+    float4 v4 = float4(v3, 1.0);
+    v4 = mul(mat, v4);
+    v4 /= v4.w;
+    return v4.xyz;
+}
+
+uint Index3DTo1D(uint3 i)
+{
+    return i.z * _numClusterX * _numClusterY
+        + i.y * _numClusterX
+        + i.x;
+}
+
+[numthreads(16,16,1)]
+void ClusterGenerate (
+    uint3 gtid : SV_GroupThreadID, 
+    uint3 gid : SV_GroupID)
+{
+    // cluster ID 
+    uint i=gtid.x, j=gtid.y, k=gid.x;
+    uint3 clusterId_3D = uint3(i,j,k);
+    uint clusterId_1D = Index3DTo1D(clusterId_3D);
+
+    // NDC 视锥体 tile
+    float xmin = (i / _numClusterX) * 2 - 1;
+    float ymin = (j / _numClusterY) * 2 - 1;
+    float xmax = ((i+1) / _numClusterX) * 2 - 1;
+    float ymax = ((j+1) / _numClusterY) * 2 - 1;
+    float zmin = k / _numClusterZ;
+    float zmax = (k+1) / _numClusterZ;
+
+    // 0,1 做 z 反投影转世界空间得到完整 cluster
+    float3 p0 = MatTransformProj(_vpMatrixInv, float3(xmin, ymin, 0));
+    float3 p1 = MatTransformProj(_vpMatrixInv, float3(xmin, ymin, 1));
+    float3 p2 = MatTransformProj(_vpMatrixInv, float3(xmin, ymax, 0));
+    float3 p3 = MatTransformProj(_vpMatrixInv, float3(xmin, ymax, 1));
+    float3 p4 = MatTransformProj(_vpMatrixInv, float3(xmax, ymin, 0));
+    float3 p5 = MatTransformProj(_vpMatrixInv, float3(xmax, ymin, 1));
+    float3 p6 = MatTransformProj(_vpMatrixInv, float3(xmax, ymax, 0));
+    float3 p7 = MatTransformProj(_vpMatrixInv, float3(xmax, ymax, 1));
+    
+    // 世界空间下根据 k 切分出 cluster box
+    ClusterBox box;
+    box.p0 = p0 + zmin * (p1 - p0);
+    box.p1 = p0 + zmax * (p1 - p0);
+    box.p2 = p2 + zmin * (p3 - p2);
+    box.p3 = p2 + zmax * (p3 - p2);
+    box.p4 = p4 + zmin * (p5 - p4);
+    box.p5 = p4 + zmax * (p5 - p4);
+    box.p6 = p6 + zmin * (p7 - p6);
+    box.p7 = p6 + zmax * (p7 - p6);
+
+    //_clusterBuffer.Append(box);
+    _clusterBuffer[clusterId_1D] = box;
+}
