@@ -8,6 +8,8 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 
 ![image-20220127123312138](README.assets/image-20220127123312138.png)
 
+![image-20220205133758498](README.assets/image-20220205133758498.png)
+
 
 
 # Features
@@ -18,6 +20,7 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 * glTF Material support
 * Cascaded Shadow Mapping（CSM）
 * PCSS soft shadow
+* Cluster Based Deferred Lighting
 
 
 
@@ -51,7 +54,7 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 
 - [x] Shadow Mapping
 
-- [ ] Cluster Shading
+- [x] Cluster Shading
 - [ ] Screen Space Effect
 - [ ] Volumn Effect
 - [ ] Post Process
