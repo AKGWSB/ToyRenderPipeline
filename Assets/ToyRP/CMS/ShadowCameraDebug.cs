@@ -7,6 +7,8 @@ using UnityEngine;
 public class ShadowCameraDebug : MonoBehaviour
 {
     CSM csm;
+    public int a;
+    public CsmSettings csmSettings;
 
     void Update()
     {
@@ -18,7 +20,7 @@ public class ShadowCameraDebug : MonoBehaviour
 
         // 更新 shadowmap
         if(csm==null) csm = new CSM();
-        csm.Update(mainCam, lightDir);
+        csm.Update(mainCam, lightDir, csmSettings);
         csm.DebugDraw();
     }
 }

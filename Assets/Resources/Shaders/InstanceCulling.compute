@@ -1,0 +1,119 @@
+#pragma kernel CSMain
+
+#include "UnityCG.cginc"
+
+int _instanceCount;
+int _size;
+float4 _planes[6];
+float4 _bounds[8];
+
+float4x4 _vpMatrix;
+Texture2D _hizBuffer;
+
+RWStructuredBuffer<float4x4> _matrixBuffer;             // 全部的变换矩阵
+AppendStructuredBuffer<float4x4> _validMatrixBuffer;    // 剔除后剩余 instance 的变换矩阵
+RWStructuredBuffer<uint> _argsBuffer;                   // 绘制参数
+
+int GetSide(float4 plane, float3 p)
+{
+    return (dot(plane.xyz, p)+plane.w > 0) ? 1 : 0;
+}
+
+int IsInside(float4 _planes[6], float3 p)
+{
+    int cnt = 0;
+    for(int i=0; i<6; i++)
+        cnt += GetSide(_planes[i], p);
+    return cnt==6 ? 1 : 0;
+}
+
+bool Visibility(float4 _planes[6], float4 _bounds[8])
+{
+    int cnt = 0;
+    for(int i=0; i<8; i++)
+        cnt += IsInside(_planes, _bounds[i]);
+    return cnt > 0;
+}
+
+bool OcclusionVisibility(float4 _bounds[8], float4x4 _vpMatrix, Texture2D _hizBuffer)
+{
+    // 计算中心和 bounding box 的宽高
+    float4 center = float4(0,0,0,1);
+    float xmax=-1, ymax=-1, xmin=1, ymin=1, zmax=-1, zmin=1;
+    for(int i=0; i<8; i++)
+    {
+        // to ndc space
+        float4 ndcBounds = mul(_vpMatrix, _bounds[i]);
+        ndcBounds.xyz /= ndcBounds.w;
+        center.xyz += ndcBounds.xyz;
+
+        xmax = max(xmax, ndcBounds.x);
+        ymax = max(ymax, ndcBounds.y);
+        xmin = min(xmin, ndcBounds.x);
+        ymin = min(ymin, ndcBounds.y);
+        zmax = max(zmax, ndcBounds.z);
+        zmin = min(zmin, ndcBounds.z);
+    }
+    center.xyz /= 8;
+    float2 uv = center.xy * 0.5 + 0.5;
+
+    // 计算 mip 等级
+    float boxSize = clamp(max(xmax - xmin, ymax - ymin) * 0.5, 0, 1);
+    int lod = clamp(floor(log2(boxSize * _size)), 0, 15);
+
+    uv *= _size / pow(2, lod);
+    float d = _hizBuffer.mips[lod][int2(uv)].r;
+
+#if defined (UNITY_REVERSED_Z)
+    return d < zmax;
+#else
+    return d > zmin;
+#endif
+}
+
+/*
+[numthreads(128,1,1)]
+void CSMain (uint3 gid : SV_GroupID, uint id : SV_GroupIndex)
+{
+    uint index = gid.x * 128 + id;  // 线程 id 转 instance id
+    if(id>=(uint)_instanceCount) return;
+
+    // to world space
+    float4x4 ObjectToWorld = _matrixBuffer[index];
+    float4 worldBounds[8];
+    for(int i=0; i<8; i++)
+        worldBounds[i] = mul(ObjectToWorld, _bounds[i]);
+    
+    bool vis = Visibility(_planes, worldBounds);
+    if(!vis) return;
+
+    bool occlusion = OcclusionVisibility(worldBounds, _vpMatrix, _hizBuffer);
+    if(!occlusion) return;
+
+    _validMatrixBuffer.Append(ObjectToWorld);   // 保存变换矩阵
+    InterlockedAdd(_argsBuffer[1], 1);          // 绘制计数增加 1
+}
+*/
+
+[numthreads(128,1,1)]
+void CSMain (uint3 gid : SV_GroupID, uint3 gtid : SV_GroupThreadID)
+{
+    uint index = gid.x * 128 + gtid.x;  // 线程 id 转 instance id
+    if(index>=(uint)_instanceCount) return;
+
+    float4x4 ObjectToWorld = _matrixBuffer[index];
+
+    // bounding box to world space
+    float4 worldBounds[8];
+    for(int i=0; i<8; i++)
+        worldBounds[i] = mul(ObjectToWorld, _bounds[i]);
+    
+    bool vis = Visibility(_planes, worldBounds);
+    if(!vis) return;
+
+    bool occlusion = OcclusionVisibility(worldBounds, _vpMatrix, _hizBuffer);
+    if(!occlusion) return;
+
+    _validMatrixBuffer.Append(ObjectToWorld);   // 保存变换矩阵
+    InterlockedAdd(_argsBuffer[1], 1);          // 绘制计数增加 1
+}

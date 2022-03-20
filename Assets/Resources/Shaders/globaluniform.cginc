@@ -16,10 +16,17 @@ sampler2D _shadowtex2;
 sampler2D _shadowtex3;
 sampler2D _shadoMask;
 
+sampler2D _hizBuffer;
+
+float _far;
+float _near;
 float _usingShadowMask;
+float _csmMaxDistance;
 
 float4x4 _vpMatrix;
 float4x4 _vpMatrixInv;
+float4x4 _vpMatrixPrev;
+float4x4 _vpMatrixInvPrev;
 
 float4x4 _shadowVpMatrix0;
 float4x4 _shadowVpMatrix1;

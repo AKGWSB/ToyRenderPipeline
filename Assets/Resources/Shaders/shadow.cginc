@@ -88,7 +88,7 @@ static float2 poissonDisk[N_SAMPLE] = {
     float2(-0.1020106f, 0.6724468f)
 };
 
-float ShadowMap01(float4 worldPos, sampler2D _shadowtex, float4x4 _shadowVpMatrix)
+float ShadowMap01(float4 worldPos, sampler2D _shadowtex, float4x4 _shadowVpMatrix, float bias)
 {
     float4 shadowNdc = mul(_shadowVpMatrix, worldPos);
     shadowNdc /= shadowNdc.w;
@@ -100,9 +100,9 @@ float ShadowMap01(float4 worldPos, sampler2D _shadowtex, float4x4 _shadowVpMatri
     float d_sample = tex2D(_shadowtex, uv).r;
 
 #if defined (UNITY_REVERSED_Z)
-    if(d_sample>d) return 0.0f;
+    if(d_sample>d+bias) return 0.0f;
 #else
-    if(d_sample<d) return 0.0f;
+    if(d_sample+bias<d) return 0.0f;
 #endif
 
     return 1.0f;
@@ -146,7 +146,7 @@ float2 RotateVec2(float2 v, float angle)
     return float2(v.x*c+v.y*s, -v.x*s+v.y*c);
 }
 
-float2 AverageBlockerDepth(float4 shadowNdc, sampler2D _shadowtex, float d_shadingPoint, float searchWidth, float rotateAngle)
+float2 AverageBlockerDepth(float4 shadowNdc, sampler2D _shadowtex, float d_shadingPoint, float searchWidth, float rotateAngle, float bias)
 {
     float2 uv = shadowNdc.xy * 0.5 + 0.5;
     float step = 3.0;
@@ -179,7 +179,7 @@ float2 AverageBlockerDepth(float4 shadowNdc, sampler2D _shadowtex, float d_shadi
         float2 uvo = uv + offset;
 
         float d_sample = tex2D(_shadowtex, uvo).r;
-        if(d_sample>d_shadingPoint)
+        if(d_sample>d_shadingPoint+bias)
         {
             count += 1;
             d_average += d_sample;
@@ -192,7 +192,7 @@ float2 AverageBlockerDepth(float4 shadowNdc, sampler2D _shadowtex, float d_shadi
 float ShadowMapPCSS(
     float4 worldPos, sampler2D _shadowtex, float4x4 _shadowVpMatrix, 
     float orthoWidth, float orthoDistance, float shadowMapResolution, float rotateAngle,
-    float pcssSearchRadius, float pcssFilterRadius)
+    float pcssSearchRadius, float pcssFilterRadius, float bias)
 {
     float4 shadowNdc = mul(_shadowVpMatrix, worldPos);
     shadowNdc /= shadowNdc.w;
@@ -202,7 +202,7 @@ float ShadowMapPCSS(
     
     // 计算平均遮挡深度
     float searchWidth = pcssSearchRadius / orthoWidth;
-    float2 blocker = AverageBlockerDepth(shadowNdc, _shadowtex, d_shadingPoint, searchWidth, rotateAngle);
+    float2 blocker = AverageBlockerDepth(shadowNdc, _shadowtex, d_shadingPoint, searchWidth, rotateAngle, bias);
     float d_average = blocker.x;
     float blockCnt = blocker.y;
     //return blockCnt / 49;
@@ -248,7 +248,7 @@ float ShadowMapPCSS(
         //if(uvo.x<0 || uvo.x>1 || uvo.y<0 || uvo.y>1) continue;
 
         float d_sample = tex2D(_shadowtex, uvo).r;
-        if(d_sample>d_shadingPoint) shadow += 1.0f;
+        if(d_sample>d_shadingPoint+bias) shadow += 1.0f;
     }
     shadow /= N_SAMPLE;
     

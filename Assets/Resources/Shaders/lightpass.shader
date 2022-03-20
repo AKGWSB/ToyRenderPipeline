@@ -45,6 +45,7 @@ Shader "ToyRP/lightpass"
             fixed4 frag (v2f i, out float depthOut : SV_Depth) : SV_Target
             {
                 float2 uv = i.uv;
+                //return tex2Dlod(_hizBuffer, float4(uv.x, uv.y, 0, 7)); 
                 float4 GT2 = tex2D(_GT2, uv);
                 float4 GT3 = tex2D(_GT3, uv);
 

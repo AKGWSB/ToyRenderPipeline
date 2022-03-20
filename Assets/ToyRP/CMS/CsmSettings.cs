@@ -5,6 +5,7 @@ using UnityEngine;
 [System.Serializable]
 public class CsmSettings
 {
+    public float maxDistance = 200;
     public bool usingShadowMask = false;
     public ShadowSettings level0;
     public ShadowSettings level1;
@@ -22,5 +23,6 @@ public class CsmSettings
             Shader.SetGlobalFloat("_pcssFilterRadius"+i, levels[i].pcssFilterRadius);
         }
         Shader.SetGlobalFloat("_usingShadowMask", usingShadowMask ? 1.0f : 0.0f);
+        Shader.SetGlobalFloat("_csmMaxDistance", maxDistance);
     }
 }

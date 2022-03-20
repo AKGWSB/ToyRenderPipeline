@@ -8,9 +8,16 @@ using UnityEngine.Profiling;
 public class ToyRenderPipeline : RenderPipeline
 {
     RenderTexture gdepth;                                               // depth attachment
-    RenderTexture[] gbuffers = new RenderTexture[4];                    // color attachments 
+    RenderTexture[] gbuffers = new RenderTexture[4];                    // color attachments
+    RenderTargetIdentifier gdepthID; 
     RenderTargetIdentifier[] gbufferID = new RenderTargetIdentifier[4]; // tex ID 
     RenderTexture lightPassTex;                                         // 存储 light pass 的结果
+    RenderTexture hizBuffer;                                            // hi-z buffer
+
+    Matrix4x4 vpMatrix;
+    Matrix4x4 vpMatrixInv;
+    Matrix4x4 vpMatrixPrev;     // 上一帧的 vp 矩阵
+    Matrix4x4 vpMatrixInvPrev;
 
     // 噪声图
     public Texture blueNoiseTex;
@@ -33,6 +40,9 @@ public class ToyRenderPipeline : RenderPipeline
     // 光照管理
     ClusterLight clusterLight;
 
+    // instance data 数组
+    public InstanceData[] instanceDatas;
+
     public ToyRenderPipeline()
     {
         QualitySettings.vSyncCount = 0;     // 关闭垂直同步
@@ -46,7 +56,15 @@ public class ToyRenderPipeline : RenderPipeline
         gbuffers[3] = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         lightPassTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
 
+        // Hi-z buffer
+        int hSize = Mathf.NextPowerOfTwo(Mathf.Max(Screen.width, Screen.height));   // 大小必须是 2 的次幂
+        hizBuffer = new RenderTexture(hSize, hSize, 0, RenderTextureFormat.RHalf);
+        hizBuffer.autoGenerateMips = false;
+        hizBuffer.useMipMap = true;
+        hizBuffer.filterMode = FilterMode.Point;
+
         // 给纹理 ID 赋值
+        gdepthID = gdepth;
         for(int i=0; i<4; i++)
             gbufferID[i] = gbuffers[i];
         
@@ -67,6 +85,8 @@ public class ToyRenderPipeline : RenderPipeline
         Camera camera = cameras[0];
 
         // 全局变量设置
+        Shader.SetGlobalFloat("_far", camera.farClipPlane);
+        Shader.SetGlobalFloat("_near", camera.nearClipPlane);
         Shader.SetGlobalFloat("_screenWidth", Screen.width);
         Shader.SetGlobalFloat("_screenHeight", Screen.height);
         Shader.SetGlobalTexture("_noiseTex", blueNoiseTex);
@@ -74,16 +94,19 @@ public class ToyRenderPipeline : RenderPipeline
 
         //  gbuffer 
         Shader.SetGlobalTexture("_gdepth", gdepth);
+        Shader.SetGlobalTexture("_hizBuffer", hizBuffer);
         for(int i=0; i<4; i++) 
             Shader.SetGlobalTexture("_GT"+i, gbuffers[i]);
 
         // 设置相机矩阵
         Matrix4x4 viewMatrix = camera.worldToCameraMatrix;
         Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
-        Matrix4x4 vpMatrix = projMatrix * viewMatrix;
-        Matrix4x4 vpMatrixInv = vpMatrix.inverse;
+        vpMatrix = projMatrix * viewMatrix;
+        vpMatrixInv = vpMatrix.inverse;
         Shader.SetGlobalMatrix("_vpMatrix", vpMatrix);
         Shader.SetGlobalMatrix("_vpMatrixInv", vpMatrixInv);
+        Shader.SetGlobalMatrix("_vpMatrixPrev", vpMatrixPrev);
+        Shader.SetGlobalMatrix("_vpMatrixInvPrev", vpMatrixInvPrev);
 
         // 设置 IBL 贴图
         Shader.SetGlobalTexture("_diffuseIBL", diffuseIBL);
@@ -102,6 +125,8 @@ public class ToyRenderPipeline : RenderPipeline
             Shader.SetGlobalFloat("_split"+i, csm.splts[i]);
         }
 
+        bool isEditor = Handles.ShouldRenderGizmos();
+
         // ------------------------ 管线各个 Pass ------------------------ //
 
         ClusterLightingPass(context, camera);
@@ -110,17 +135,28 @@ public class ToyRenderPipeline : RenderPipeline
 
         GbufferPass(context, camera);
 
+        InstanceDrawPass(context, Camera.main);
+
+        // only generate for main camera
+        if(!isEditor)
+        {
+            HizPass(context, camera);
+            vpMatrixPrev = vpMatrix;
+        }
+
         ShadowMappingPass(context, camera);
 
         LightPass(context, camera);
 
         //FinalPass(context, camera);
 
+        //
+
         // ------------------------- Pass end -------------------------- //
 
         // skybox and Gizmos
         context.DrawSkybox(camera);
-        if (Handles.ShouldRenderGizmos()) 
+        if (isEditor) 
         {
             context.DrawGizmos(camera, GizmoSubset.PreImageEffects);
             context.DrawGizmos(camera, GizmoSubset.PostImageEffects);
@@ -159,7 +195,7 @@ public class ToyRenderPipeline : RenderPipeline
         Vector3 lightDir = light.transform.rotation * Vector3.forward;
 
         // 更新 shadowmap 分割
-        csm.Update(camera, lightDir);
+        csm.Update(camera, lightDir, csmSettings);
         csmSettings.Set();
 
         csm.SaveMainCameraSettings(ref camera);
@@ -227,7 +263,7 @@ public class ToyRenderPipeline : RenderPipeline
         DrawingSettings drawingSettings = new DrawingSettings(shaderTagId, sortingSettings);
         FilteringSettings filteringSettings = FilteringSettings.defaultValue;
 
-        // 绘制
+        // 绘制一般几何体
         context.DrawRenderers(cullingResults, ref drawingSettings, ref filteringSettings);
         context.Submit();
 
@@ -287,6 +323,75 @@ public class ToyRenderPipeline : RenderPipeline
         Material mat = new Material(Shader.Find("ToyRP/finalpass"));
         cmd.Blit(lightPassTex, BuiltinRenderTextureType.CameraTarget, mat);
         context.ExecuteCommandBuffer(cmd);
+        context.Submit();
+    }
+
+    // 绘制 instanceData 列表中的所有 instance
+    void InstanceDrawPass(ScriptableRenderContext context, Camera camera)
+    {
+        CommandBuffer cmd = new CommandBuffer();
+        cmd.name = "instance gbuffer";
+        cmd.SetRenderTarget(gbufferID, gdepth);
+
+        Matrix4x4 viewMatrix = camera.worldToCameraMatrix;
+        Matrix4x4 projMatrix = GL.GetGPUProjectionMatrix(camera.projectionMatrix, false);
+        Matrix4x4 vp = projMatrix * viewMatrix;
+
+        // 绘制 instance
+        ComputeShader cullingCs = FindComputeShader("InstanceCulling"); 
+        for(int i=0; i<instanceDatas.Length; i++)
+        {
+            InstanceDrawer.Draw(instanceDatas[i], Camera.main, cullingCs, vpMatrixPrev, hizBuffer, ref cmd);
+        }
+        context.ExecuteCommandBuffer(cmd);
+        context.Submit();
+    }
+
+    // hiz pass
+    void HizPass(ScriptableRenderContext context, Camera camera)
+    {
+        CommandBuffer cmd = new CommandBuffer();
+        cmd.name = "hizpass";
+
+        // 创建纹理
+        int size = hizBuffer.width;
+        int nMips = (int)Mathf.Log(size, 2);
+        RenderTexture[] mips = new RenderTexture[nMips];
+        for(int i=0; i<mips.Length; i++)
+        {
+            int mSize = size / (int)Mathf.Pow(2, i);
+            mips[i] = RenderTexture.GetTemporary(mSize, mSize, 0, RenderTextureFormat.RHalf, RenderTextureReadWrite.Linear);
+            mips[i].filterMode = FilterMode.Point;
+        }
+            
+        // 生成 mipmap
+        Material mat = new Material(Shader.Find("ToyRP/hizBlit"));
+        cmd.Blit(gdepth, mips[0]);
+        for(int i=1; i<mips.Length; i++)
+        {
+            cmd.Blit(mips[i-1], mips[i], mat);
+        }
+            
+        // 拷贝到 hizBuffer 的各个 mip
+        for(int i=0; i<mips.Length; i++)
+        {
+            cmd.CopyTexture(mips[i], 0, 0, hizBuffer, 0, i);
+            RenderTexture.ReleaseTemporary(mips[i]);
+        }
+
+        context.ExecuteCommandBuffer(cmd);
+        context.Submit();
+    }
+
+    static ComputeShader FindComputeShader(string shaderName)
+    {
+        ComputeShader[] css = Resources.FindObjectsOfTypeAll(typeof(ComputeShader)) as ComputeShader[];
+        for (int i = 0; i < css.Length; i++) 
+        { 
+            if (css[i].name == shaderName) 
+                return css[i];
+        }
+        return null;
     }
 }
 

@@ -13,6 +13,7 @@ public class ToyRenderPipelineAsset : RenderPipelineAsset {
 
     [SerializeField] 
     public CsmSettings csmSettings;
+    public InstanceData[] instanceDatas;
 
     protected override RenderPipeline CreatePipeline() {
       ToyRenderPipeline rp = new ToyRenderPipeline();
@@ -22,6 +23,7 @@ public class ToyRenderPipelineAsset : RenderPipelineAsset {
       rp.brdfLut = brdfLut;
       rp.blueNoiseTex = blueNoiseTex;
       rp.csmSettings = csmSettings;
+      rp.instanceDatas = instanceDatas;
 
       return rp;
   }

@@ -56,11 +56,10 @@ Shader "ToyRP/shadowmappingpass"
 
                 // 向着法线偏移采样点
                 float4 worldPosOffset = worldPos;
-
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
-                float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
+                float NdotL = clamp(dot(lightDir, normal), 0, 1);
 
-                if(dot(lightDir, normal) < 0.005) return 0;
+                if(NdotL < 0.005) return NdotL;
 
                 // 随机旋转角度
                 uint seed = RandomSeed(uv, float2(_screenWidth, _screenHeight));
@@ -77,33 +76,42 @@ Shader "ToyRP/shadowmappingpass"
                 }
 
                 float shadow = 1.0;
-                if(d_lin<_split0) 
+                float csmLevel = d_lin * (_far - _near) / _csmMaxDistance;
+                if(csmLevel<_split0) 
                 {
                     worldPosOffset.xyz += normal * _shadingPointNormalBias0;
+                    float bias = (1 * _orthoWidth0 / _shadowMapResolution) * _depthNormalBias0;
+                    
                     //color *= float3(1.5, 0.5, 0.5);
-                    //shadow *= ShadowMap01(worldPosOffset, _shadowtex0, _shadowVpMatrix0);
+                    //shadow *= ShadowMap01(worldPosOffset, _shadowtex0, _shadowVpMatrix0, bias);
                     //shadow *= PCF3x3(worldPosOffset, _shadowtex0, _shadowVpMatrix0, _shadowMapResolution, 0); 
-                    shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex0, _shadowVpMatrix0, _orthoWidth0, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius0, _pcssFilterRadius0);
+                    shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex0, _shadowVpMatrix0, _orthoWidth0, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius0, _pcssFilterRadius0, bias);
                 }
-                else if(d_lin<_split0+_split1)
+                else if(csmLevel<_split0+_split1)
                 {
                     worldPosOffset.xyz += normal * _shadingPointNormalBias1;
+                    float bias = (1 * _orthoWidth1 / _shadowMapResolution) * _depthNormalBias1;
+
                     //color *= float3(0.5, 1.5, 0.5);
-                    //shadow *= ShadowMap01(worldPosOffset, _shadowtex1, _shadowVpMatrix1);
+                    //shadow *= ShadowMap01(worldPosOffset, _shadowtex1, _shadowVpMatrix1, bias);
                     //shadow *= PCF3x3(worldPos, _shadowtex1, _shadowVpMatrix1, _shadowMapResolution, bias);
-                    shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex1, _shadowVpMatrix1, _orthoWidth1, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius1, _pcssFilterRadius1);
+                    shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex1, _shadowVpMatrix1, _orthoWidth1, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius1, _pcssFilterRadius1, bias);
                 }
-                else if(d_lin<_split0+_split1+_split2) 
+                else if(csmLevel<_split0+_split1+_split2) 
                 {   
                     worldPosOffset.xyz += normal * _shadingPointNormalBias2;
+                    float bias = (1 * _orthoWidth2 / _shadowMapResolution) * _depthNormalBias2;
+
                     //color *= float3(0.5, 0.5, 1.5);
-                    shadow *= ShadowMap01(worldPosOffset, _shadowtex2, _shadowVpMatrix2);
-                    //shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex2, _shadowVpMatrix2, _orthoWidth2, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius2, _pcssFilterRadius2);
+                    shadow *= ShadowMap01(worldPosOffset, _shadowtex2, _shadowVpMatrix2, bias);
+                    //shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex3, _shadowVpMatrix3, _orthoWidth3, _orthoDistance, _shadowMapResolution, rotateAngle, _pcssSearchRadius3, _pcssFilterRadius3, bias);
                 }
-                else if(d_lin<_split0+_split1+_split2+_split3)
+                else if(csmLevel<_split0+_split1+_split2+_split3)
                 {
                     worldPosOffset.xyz += normal * _shadingPointNormalBias3;
-                    shadow *= ShadowMap01(worldPosOffset, _shadowtex3, _shadowVpMatrix3);
+                    float bias = (1 * _orthoWidth3 / _shadowMapResolution) * _depthNormalBias3;
+
+                    shadow *= ShadowMap01(worldPosOffset, _shadowtex3, _shadowVpMatrix3, bias);
                     //shadow *= ShadowMapPCSS(worldPosOffset, _shadowtex3, _shadowVpMatrix3, _orthoWidth3, _orthoDistance, _shadowMapResolution);
                 }
 

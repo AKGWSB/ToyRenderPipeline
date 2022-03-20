@@ -128,6 +128,49 @@ public class CSM
         orthoWidths[2] = Vector3.Magnitude(f2_far[2]-f2_near[0]);
         orthoWidths[3] = Vector3.Magnitude(f3_far[2]-f3_near[0]);
     }
+    public void Update(Camera mainCam, Vector3 lightDir, CsmSettings cSettings)
+    {
+        // 获取主相机视锥体
+        mainCam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), cSettings.maxDistance, Camera.MonoOrStereoscopicEye.Mono, farCorners);
+        mainCam.CalculateFrustumCorners(new Rect(0, 0, 1, 1), mainCam.nearClipPlane, Camera.MonoOrStereoscopicEye.Mono, nearCorners);
+
+        // 视锥体顶点转世界坐标
+        for (int i = 0; i < 4; i++)
+        {
+            farCorners[i] = mainCam.transform.TransformVector(farCorners[i]) + mainCam.transform.position;
+            nearCorners[i] = mainCam.transform.TransformVector(nearCorners[i]) + mainCam.transform.position;
+        }
+
+        // 按照比例划分相机视锥体
+        for(int i=0; i<4; i++)
+        {
+            Vector3 dir = farCorners[i] - nearCorners[i];
+
+            f0_near[i] = nearCorners[i];
+            f0_far[i] = f0_near[i] + dir * splts[0];
+
+            f1_near[i] = f0_far[i];
+            f1_far[i] = f1_near[i] + dir * splts[1];
+
+            f2_near[i] = f1_far[i];
+            f2_far[i] = f2_near[i] + dir * splts[2];
+            
+            f3_near[i] = f2_far[i];
+            f3_far[i] = f3_near[i] + dir * splts[3];
+        }
+
+        // 计算包围盒
+        box0 = LightSpaceAABB(f0_near, f0_far, lightDir);
+        box1 = LightSpaceAABB(f1_near, f1_far, lightDir);
+        box2 = LightSpaceAABB(f2_near, f2_far, lightDir);
+        box3 = LightSpaceAABB(f3_near, f3_far, lightDir);
+
+        // 更新 Ortho width
+        orthoWidths[0] = Vector3.Magnitude(f0_far[2]-f0_near[0]);
+        orthoWidths[1] = Vector3.Magnitude(f1_far[2]-f1_near[0]);
+        orthoWidths[2] = Vector3.Magnitude(f2_far[2]-f2_near[0]);
+        orthoWidths[3] = Vector3.Magnitude(f3_far[2]-f3_near[0]);
+    }
 
     // 保存相机参数, 更改为正交投影
     public void SaveMainCameraSettings(ref Camera camera)
