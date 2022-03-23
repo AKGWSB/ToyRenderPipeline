@@ -1,14 +1,24 @@
 # ToyRenderPipeline
 
-An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
+Custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）including various of popular graphic features
+
+![image-20220323161100108](README.assets/image-20220323161100108.png)
+
+# Gallery
+
+Physical Based Rendering（PBR）and Image Based Lighting（IBL）：
 
 ![image-20220118141514668](README.assets/image-20220118141514668.png)
 
-![image-20220118141333385](README.assets/image-20220118141333385.png)
+Cascaded Shadow Mapping（CSM）and Soft Shadow（PCSS）：
 
 ![image-20220127123312138](README.assets/image-20220127123312138.png)
 
+Cluster Based Light：
+
 ![image-20220205133758498](README.assets/image-20220205133758498.png)
+
+GPU Based（frustum& Hi-Z occlusion）Culling using compute shader：
 
 ![image-20220320173042983](README.assets/image-20220320173042983.png)
 
@@ -23,7 +33,7 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 * Cascaded Shadow Mapping（CSM）
 * PCSS soft shadow
 * Cluster Based Deferred Lighting
-* GPU Driven Culling（Frustum & Occlusion Culling）
+* GPU Based Culling（Frustum & Occlusion）
 
 
 
@@ -41,6 +51,8 @@ An custom Render Pipeline with Unity SRP（Scriptable Render Pipeline）
 * Menu `Edit > Project Settings > Graphics`，select the custom pipeline
 * Bind `ToyRP/gbuffer` shader to all materials
 
+![image-20220323161842640](README.assets/image-20220323161842640.png)
+
 
 
 # Compare With Unity 
@@ -49,15 +61,10 @@ Using some tricks trying to align the rendering result to Unity Build-in Pipelin
 
 ![image-20220118142219780](README.assets/image-20220118142219780.png)
 
-![image-20220123143842308](README.assets/image-20220123143842308.png)
-
 
 
 # Todo
 
-- [x] Shadow Mapping
-
-- [x] Cluster Shading
 - [ ] Screen Space Effect
 - [ ] Volumn Effect
 - [ ] Post Process
